@@ -1,7 +1,7 @@
 <template>
     <div class="overlay" @click="handleStart">
         <div class="overlay__content">
-            <div class="overlay__glitch">JUKEBOX</div>
+            <div class="overlay__glitch">GROOVEBOX</div>
             <p class="overlay__sub">tap to start</p>
             <div class="overlay__pulse" />
         </div>

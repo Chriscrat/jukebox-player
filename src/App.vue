@@ -9,7 +9,7 @@
         class="app"
     >
         <header class="app__header">
-            <h1 class="app__title">JUKEBOX</h1>
+            <h1 class="app__title">GROOVEBOX</h1>
             <span class="app__sub">BEAT SEQUENCER</span>
         </header>
 
