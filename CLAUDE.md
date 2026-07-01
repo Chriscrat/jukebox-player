@@ -20,7 +20,7 @@ aesthetic dark/minimal synth. Pas de backend.
 
 ## Conventions
 - Appliquer vue-standards (script setup, Composition API, pas de mutation de props)
-- InstrumentConfig est la source de vérité d'un instrument
+- Instrument est la source de vérité d'un instrument
 - Un thème = un fichier dans src/presets/themes/
 
 ## Commandes
