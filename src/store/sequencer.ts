@@ -1,30 +1,35 @@
-import { defineStore } from 'pinia'
-import { reactive } from 'vue'
-import type { SequencerState, StyleId, StylePreset, Track, TrackId } from '../types/audio'
+import { defineStore } from 'pinia';
+import { reactive } from 'vue';
+import type {
+    Ambiance,
+    InstrumentSequence,
+    SequencerState,
+    StylePreset,
+    AnyTrack
+} from '../types/audio';
 
-const STEP_COUNT = 16
+const STEP_COUNT = 16;
 
-function createTrack(id: TrackId, label: string): Track {
+function createSequence(track: AnyTrack): InstrumentSequence {
+    const steps = Array.from({ length: STEP_COUNT }, (_, index) => {
+        const event = track.events.find((event) => event.step === index);
+        return {
+            step: index,
+            active: !!event,
+            note: event?.note ?? track.instrument.defaultNote,
+        }
+    });
     return {
-        id,
-        label,
-        steps: Array.from({ length: STEP_COUNT }, () => ({ active: false })),
-        params: {
-            volume: 0.8,
-            decay: 0.3,
-            oscillatorType: 'sine',
-        },
-    }
+        instrumentId: track.instrument.id,
+        steps: steps,
+        volume: track.instrument.volume,
+        decay: 0.5,
+    };
 }
 
 export const useSequencerStore = defineStore('sequencer', () => {
     const state = reactive<SequencerState>({
-        tracks: [
-            createTrack('kick', 'KICK'),
-            createTrack('snare', 'SNARE'),
-            createTrack('bass', 'BASS'),
-            createTrack('lead', 'LEAD'),
-        ],
+        sequences: [],
         bpm: 120,
         isPlaying: false,
         isAudioReady: false,
@@ -33,114 +38,91 @@ export const useSequencerStore = defineStore('sequencer', () => {
             reverbWet: 0.2,
             delayWet: 0.1,
         },
-        activeStyleId: null as StyleId | null,
-    })
+        activePresetId: null,
+        activeAmbianceId: null,
+    });
 
-    function toggleStep(trackId: TrackId, stepIndex: number): void {
-        const track = state.tracks.find((t) => t.id === trackId)
-        if (!track) return
-        track.steps[stepIndex].active = !track.steps[stepIndex].active
+    function toggleStep(instrumentId: string, stepIndex: number): void {
+        const seq = state.sequences.find((s) => s.instrumentId === instrumentId);
+        if (!seq) return;
+        seq.steps[stepIndex].active = !seq.steps[stepIndex].active;
+    }
+
+    function setStepNote(instrumentId: string, stepIndex: number, note: string | undefined): void {
+        const seq = state.sequences.find((s) => s.instrumentId === instrumentId);
+        if (!seq) return;
+        seq.steps[stepIndex].note = note;
     }
 
     function setBpm(value: number): void {
-        state.bpm = Math.min(180, Math.max(60, value))
+        state.bpm = Math.min(180, Math.max(60, value));
     }
 
     function setPlaying(value: boolean): void {
-        state.isPlaying = value
+        state.isPlaying = value;
     }
 
     function setAudioReady(value: boolean): void {
-        state.isAudioReady = value
+        state.isAudioReady = value;
     }
 
     function setCurrentStep(index: number): void {
-        state.currentStep = index
+        state.currentStep = index;
     }
 
-    function setTrackVolume(trackId: TrackId, value: number): void {
-        const track = state.tracks.find((t) => t.id === trackId)
-        if (!track) return
-        track.params.volume = value
+    function setInstrumentVolume(instrumentId: string, value: number): void {
+        const seq = state.sequences.find((s) => s.instrumentId === instrumentId);
+        if (!seq) return;
+        seq.volume = value;
     }
 
-    function setTrackDecay(trackId: TrackId, value: number): void {
-        const track = state.tracks.find((t) => t.id === trackId)
-        if (!track) return
-        track.params.decay = value
-    }
-
-    function setTrackOscillator(trackId: TrackId, value: string): void {
-        const track = state.tracks.find((t) => t.id === trackId)
-        if (!track) return
-        const valid = ['sine', 'square', 'sawtooth', 'triangle'] as const
-        if (valid.includes(value as (typeof valid)[number])) {
-            track.params.oscillatorType = value as (typeof valid)[number]
-        }
+    function setInstrumentDecay(instrumentId: string, value: number): void {
+        const seq = state.sequences.find((s) => s.instrumentId === instrumentId);
+        if (!seq) return;
+        seq.decay = value;
     }
 
     function setReverbWet(value: number): void {
-        state.effects.reverbWet = value
+        state.effects.reverbWet = value;
     }
 
     function setDelayWet(value: number): void {
-        state.effects.delayWet = value
+        state.effects.delayWet = value;
     }
 
-    /** Replaces a track's step pattern from a flat boolean array. */
-    function setTrackSteps(trackId: TrackId, steps: boolean[]): void {
-        const track = state.tracks.find((t) => t.id === trackId)
-        if (!track) return
-        track.steps = steps.map((active) => ({ active }))
+    function applyPreset(preset: StylePreset, ambiance: Ambiance): void {
+        setBpm(preset.bpm);
+        setReverbWet(preset.effects.reverbWet);
+        setDelayWet(preset.effects.delayWet);
+        state.sequences = ambiance?.tracks.map(createSequence);
+        setCurrentStep(-1);
+        state.activePresetId = preset.id;
+        state.activeAmbianceId = ambiance.id;
     }
 
-    /** Applies a full StylePreset: bpm, effects, all track steps and params, then marks the active style. */
-    function applyPreset(preset: StylePreset): void {
-        setBpm(preset.bpm)
-        setReverbWet(preset.effects.reverbWet)
-        setDelayWet(preset.effects.delayWet)
-        const trackIds: TrackId[] = ['kick', 'snare', 'bass', 'lead']
-        for (const id of trackIds) {
-            const tp = preset.tracks[id]
-            setTrackSteps(id, tp.steps)
-            setTrackVolume(id, tp.params.volume)
-            setTrackDecay(id, tp.params.decay)
-            setTrackOscillator(id, tp.params.oscillatorType)
-        }
-        setCurrentStep(-1)
-        state.activeStyleId = preset.id
-    }
-
-    /** Restores all tracks, bpm, and effects to their factory defaults and clears activeStyleId. */
-    function resetStyle(): void {
-        setBpm(120)
-        setReverbWet(0.2)
-        setDelayWet(0.1)
-        const trackIds: TrackId[] = ['kick', 'snare', 'bass', 'lead']
-        for (const id of trackIds) {
-            setTrackSteps(id, Array<boolean>(16).fill(false))
-            setTrackVolume(id, 0.8)
-            setTrackDecay(id, 0.3)
-            setTrackOscillator(id, 'sine')
-        }
-        setCurrentStep(-1)
-        state.activeStyleId = null
+    function resetPreset(): void {
+        setBpm(120);
+        setReverbWet(0.2);
+        setDelayWet(0.1);
+        state.sequences = [];
+        setCurrentStep(-1);
+        state.activePresetId = null;
+        state.activeAmbianceId = null;
     }
 
     return {
         state,
         toggleStep,
+        setStepNote,
         setBpm,
         setPlaying,
         setAudioReady,
         setCurrentStep,
-        setTrackVolume,
-        setTrackDecay,
-        setTrackOscillator,
+        setInstrumentVolume,
+        setInstrumentDecay,
         setReverbWet,
         setDelayWet,
-        setTrackSteps,
         applyPreset,
-        resetStyle,
-    }
-})
+        resetPreset,
+    };
+});

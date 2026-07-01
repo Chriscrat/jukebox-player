@@ -14,16 +14,18 @@
         </header>
 
         <div class="app__body">
-            <TransportControls
-                @play="engine.play"
-                @stop="engine.stop"
-            />
             <StyleSelector
                 @apply-style="handleApplyStyle"
                 @reset-style="handleResetStyle"
             />
-            <SequencerGrid />
-            <EffectsPanel />
+            <div v-show="store.state.activePresetId !== null">
+                <SequencerGrid />
+                <TransportControls
+                    @play="engine.play"
+                    @stop="engine.stop"
+                />
+                <EffectsPanel />
+            </div>
         </div>
 
         <footer class="app__footer">
@@ -41,19 +43,19 @@
     import SequencerGrid from './components/SequencerGrid.vue';
     import EffectsPanel from './components/EffectsPanel.vue';
     import StyleSelector from './components/StyleSelector.vue';
-    import type { StyleId } from './types/audio';
 
     const store = useSequencerStore();
     const engine = useAudioEngine();
-    const { applyStyle, resetStyle } = useStyles();
+    const { applyFirstStyle, applyStyle, resetStyle } = useStyles();
 
     async function handleStart(): Promise<void> {
+        applyFirstStyle();
         await engine.startAudio();
     }
 
-    function handleApplyStyle(id: StyleId): void {
+    function handleApplyStyle(presetId: string, ambianceId: string | null = null): void {
         if (store.state.isPlaying) engine.stop();
-        applyStyle(id);
+        applyStyle(presetId, ambianceId);
     }
 
     function handleResetStyle(): void {
