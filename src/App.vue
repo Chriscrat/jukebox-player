@@ -29,7 +29,7 @@
         </div>
 
         <footer class="app__footer">
-            <span>16-STEP // 4 TRACKS // TONE.JS</span>
+            <span>16-STEP // TONE.JS</span>
         </footer>
     </main>
 </template>

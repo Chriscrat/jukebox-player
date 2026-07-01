@@ -1,9 +1,10 @@
-import type { InstrumentRegistry } from './instruments-registry';
+import type { InstrumentId } from './instruments-registry';
+
+export type { InstrumentId };
 
 type Db = number;
 type Duration = '8n' | '4n' | '2n' | '1n';
-export type InstrumentId = keyof InstrumentRegistry;
-export type NotesOf<T extends InstrumentId> = InstrumentRegistry[T]['notes'];
+
 export interface Step<TNote extends string = string> {
     step: number;
     active?: boolean;
@@ -16,17 +17,20 @@ export interface EffectsState {
     delayWet: number;
 }
 
-/** Describes a sampler instrument as defined in a style preset. Immutable — no steps here. */
+/**
+ * Describes a sampler instrument as defined in a preset ambiance.
+ * TNote constrains which sample notes are valid — differs freely between ambiances.
+ */
 export interface Instrument<
-    TId extends InstrumentId,
+    TId extends InstrumentId = InstrumentId,
     TNote extends string = string
 > {
     id: TId;
     name: string;
     /** Tone.Sampler map — note string to .wav path, e.g. { 'E2': '/samples/...' }. */
     samples: Record<TNote, string>;
-    /** Note played when a step carries no note override. */
-    defaultNote: string;
+    /** Note played when a step carries no note override. Must be one of the sample notes. */
+    defaultNote: TNote;
     /** If true, a new trigger restarts the sample instead of layering. */
     retrigger: boolean;
     /** Hard playback cap in Tone.js notation, e.g. '4n'. */
@@ -45,16 +49,23 @@ export interface InstrumentSequence {
     decay: number;
 }
 
-export type Track<T extends InstrumentId> = {
-    instrument: Instrument<T, NotesOf<T>>;
+/**
+ * A sequencer track — binds an instrument to its step events.
+ * TNote is intentionally local to this track: two tracks with the same TId
+ * can use completely different note sets across ambiances.
+ */
+export type Track<
+    TId extends InstrumentId = InstrumentId,
+    TNote extends string = string
+> = {
+    instrument: Instrument<TId, TNote>;
     muted?: boolean;
     solo?: boolean;
-    events: Step<NotesOf<T>>[];
+    events: Step<TNote>[];
 };
 
-export type AnyTrack = {
-    [K in InstrumentId]: Track<K>;
-}[InstrumentId];
+/** A track with any valid instrument ID and unconstrained notes — used at runtime boundaries. */
+export type AnyTrack = Track;
 
 export interface Ambiance {
     id: string;

@@ -60,13 +60,14 @@ describe('useStyles', () => {
     })
 
     describe('applyStyle — application du preset', () => {
-        it('should apply dubstep preset with bpm 70', () => {
+        it('should apply dubstep preset bpm from the preset definition', () => {
             const store = useSequencerStore()
-            const { applyStyle } = useStyles()
+            const { styles, applyStyle } = useStyles()
 
             applyStyle('dubstep')
 
-            expect(store.state.bpm).toBe(70)
+            const dubstepBpm = styles.find((s) => s.id === 'dubstep')!.bpm
+            expect(store.state.bpm).toBe(dubstepBpm)
         })
 
         it('should apply dubstep effects', () => {
@@ -176,10 +177,10 @@ describe('useStyles', () => {
 
         it('should reset bpm to 120', () => {
             const store = useSequencerStore()
-            const { applyStyle, resetStyle } = useStyles()
+            const { styles, applyStyle, resetStyle } = useStyles()
 
             applyStyle('dubstep')
-            expect(store.state.bpm).toBe(70)
+            expect(store.state.bpm).toBe(styles.find((s) => s.id === 'dubstep')!.bpm)
 
             resetStyle()
 
